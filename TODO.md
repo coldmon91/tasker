@@ -1,7 +1,7 @@
 # TODO
 
-- [x] Google Tasks 연동
-- [] Apple Reminders 연동
+- [] Google 로그인 연동
+- [] Apple 로그인 연동
 - [] Google Calendar 연동
 
 ## 할 일 관련
@@ -10,6 +10,7 @@
 - [] 할 일 우선순위별 정렬 기능 구현
 - [] 할 일 카테고리별 필터링 기능 구현
 - [] 할 일 을 어떤 플랫폼에 작성할 지 선택하는 옵션 추가. (Tasker, Google Tasks, Apple Reminders) 
+- [x] 할 일 목록 (Tasks) 을 Acive/Completed 섹션으로 나누기
 
 ## 캘린더 뷰 관련
 - [] 캘린더 내 드래그 앤 드롭 일정 이동 기능 구현

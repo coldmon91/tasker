@@ -7,7 +7,10 @@
     MoreVertical,
     ListTodo,
     Trash2,
-    GripVertical
+    GripVertical,
+    AlertCircle,
+    ChevronDown,
+    ChevronRight
   } from 'lucide-svelte';
   import { page } from '$app/state';
   import { invoke } from '@tauri-apps/api/core';
@@ -31,6 +34,10 @@
   let draggedTaskId = $state<string | null>(null);
   let dragOverTaskId = $state<string | null>(null);
   let isDragging = $state(false);
+
+  // Collapsible section states
+  let isActiveCollapsed = $state(false);
+  let isCompletedCollapsed = $state(false);
 
   async function loadTasks() {
     try {
@@ -164,22 +171,14 @@
     return filter;
   });
 
-  let filteredTasks = $derived(() => {
-    const filter = currentFilter();
-    if (filter === 'Completed') {
-      return tasks.filter(t => t.completed);
-    }
-    if (filter === 'Active') {
-      return tasks.filter(t => !t.completed);
-    }
-    return tasks;
-  });
+  let activeTasks = $derived(() => tasks.filter(t => !t.completed));
+  let completedTasks = $derived(() => tasks.filter(t => t.completed));
 </script>
 
 <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 flex-shrink-0">
   <h2 class="text-xl font-semibold">{currentFilter()} Tasks</h2>
   <div class="flex items-center gap-4">
-    <span class="text-sm text-gray-500">{tasks.filter(t => !t.completed).length} tasks remaining</span>
+    <span class="text-sm text-gray-500">{activeTasks().length} tasks remaining</span>
   </div>
 </header>
 
@@ -199,7 +198,7 @@
 
     <!-- Task List -->
     <div
-      class="space-y-3"
+      class="space-y-8"
       ondragover={(e) => {
         console.log('[DEBUG] dragover on container');
       }}
@@ -207,7 +206,7 @@
         console.log('[DEBUG] drop on container (outside cards)');
       }}
     >
-      {#each filteredTasks() as task (task.id)}
+      {#snippet taskCard(task: Task)}
         <div
           onmousedown={(e) => handleMouseDown(task.id, e)}
           onmouseenter={() => handleMouseEnter(task.id)}
@@ -236,11 +235,12 @@
               {task.title}
             </p>
             <div class="flex items-center gap-3 mt-1">
-              <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md {
+              <span class="text-[8px] uppercase tracking-tight font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 {
                 task.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : 
                 task.priority === 'Medium' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 
                 'bg-blue-50 text-blue-600 border border-blue-100'
               }">
+                <AlertCircle size={10} strokeWidth={2.5} />
                 {task.priority}
               </span>
               <span class="text-xs text-gray-400 flex items-center gap-1">
@@ -258,15 +258,93 @@
             </button>
           </div>
         </div>
-      {:else}
+      {/snippet}
+
+      <!-- Active Section -->
+      {#if currentFilter() === 'All' || currentFilter() === 'Active'}
+        <div class="space-y-3">
+          {#if currentFilter() === 'All' && activeTasks().length > 0}
+            <button 
+              onclick={() => isActiveCollapsed = !isActiveCollapsed}
+              class="flex items-center gap-2 px-1 py-1 w-full hover:bg-gray-50 rounded-lg transition-colors group/header"
+            >
+              {#if isActiveCollapsed}
+                <ChevronRight size={16} class="text-gray-400 group-hover/header:text-gray-600" />
+              {:else}
+                <ChevronDown size={16} class="text-gray-400 group-hover/header:text-gray-600" />
+              {/if}
+              <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                Active
+                <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full text-gray-400">{activeTasks().length}</span>
+              </h3>
+            </button>
+          {/if}
+          
+          {#if !isActiveCollapsed || currentFilter() === 'Active'}
+            {#each activeTasks() as task (task.id)}
+              {@render taskCard(task)}
+            {:else}
+              {#if currentFilter() === 'Active'}
+                <div class="text-center py-20">
+                  <div class="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ListTodo size={32} class="text-indigo-600" />
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900">No active tasks!</h3>
+                  <p class="text-gray-500">Enjoy your free time or add a new task.</p>
+                </div>
+              {/if}
+            {/each}
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Completed Section -->
+      {#if currentFilter() === 'All' || currentFilter() === 'Completed'}
+        <div class="space-y-3">
+          {#if currentFilter() === 'All' && completedTasks().length > 0}
+            <button 
+              onclick={() => isCompletedCollapsed = !isCompletedCollapsed}
+              class="flex items-center gap-2 px-1 py-1 w-full hover:bg-gray-50 rounded-lg transition-colors group/header mt-4"
+            >
+              {#if isCompletedCollapsed}
+                <ChevronRight size={16} class="text-gray-400 group-hover/header:text-gray-600" />
+              {:else}
+                <ChevronDown size={16} class="text-gray-400 group-hover/header:text-gray-600" />
+              {/if}
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Completed</h3>
+                <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full text-gray-400">{completedTasks().length}</span>
+              </div>
+            </button>
+          {/if}
+
+          {#if !isCompletedCollapsed || currentFilter() === 'Completed'}
+            {#each completedTasks() as task (task.id)}
+              {@render taskCard(task)}
+            {:else}
+              {#if currentFilter() === 'Completed'}
+                <div class="text-center py-20">
+                  <div class="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 size={32} class="text-indigo-600" />
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900">No completed tasks yet</h3>
+                  <p class="text-gray-500">Get some work done and check them off!</p>
+                </div>
+              {/if}
+            {/each}
+          {/if}
+        </div>
+      {/if}
+
+      {#if currentFilter() === 'All' && activeTasks().length === 0 && completedTasks().length === 0}
         <div class="text-center py-20">
           <div class="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <ListTodo size={32} class="text-indigo-600" />
           </div>
           <h3 class="text-lg font-medium text-gray-900">All caught up!</h3>
-          <p class="text-gray-500">No tasks found for this view.</p>
+          <p class="text-gray-500">No tasks found. Start by adding one above!</p>
         </div>
-      {/each}
+      {/if}
     </div>
   </div>
 </div>

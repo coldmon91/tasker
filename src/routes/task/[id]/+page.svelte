@@ -114,14 +114,14 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Priority -->
             <div class="space-y-2">
-              <label for="priority" class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <AlertCircle size={16} class="text-gray-400" />
+              <label for="priority" class="text-xs font-semibold text-gray-500 flex items-center gap-2 uppercase tracking-wider">
+                <AlertCircle size={14} class="text-gray-400" />
                 Priority
               </label>
               <select 
                 id="priority"
                 bind:value={task.priority}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
               >
                 <option value="High">High</option>
                 <option value="Medium">Medium</option>
@@ -131,8 +131,8 @@
 
             <!-- Category -->
             <div class="space-y-2">
-              <label for="category" class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Tag size={16} class="text-gray-400" />
+              <label for="category" class="text-xs font-semibold text-gray-500 flex items-center gap-2 uppercase tracking-wider">
+                <Tag size={14} class="text-gray-400" />
                 Category
               </label>
               <input 
@@ -140,21 +140,21 @@
                 type="text" 
                 bind:value={task.category}
                 placeholder="e.g. Work, Personal"
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
               />
             </div>
 
             <!-- Due Date -->
             <div class="space-y-2 md:col-span-2">
-              <label for="due_date" class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <CalendarIcon size={16} class="text-gray-400" />
+              <label for="due_date" class="text-xs font-semibold text-gray-500 flex items-center gap-2 uppercase tracking-wider">
+                <CalendarIcon size={14} class="text-gray-400" />
                 Due Date
               </label>
               <input 
                 id="due_date"
                 type="date" 
                 bind:value={task.due_date}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
               />
             </div>
           </div>

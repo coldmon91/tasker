@@ -11,5 +11,5 @@ Tasker is a desktop task management application built with **Tauri v2 + SvelteKi
 
 ## 규칙
 
-- 변경사항이 있을시 history 디렉토리에 오늘 날짜 파일에 작업 로그를 남긴다.
+- 변경사항이 있을시 history 디렉토리에 오늘 날짜 파일에 작업 로그를 남긴다. 사용자에게 작업 로그를 남길지 묻는다.
   예를들어, 20260105 작업 내용은 `history/20260105.md` 에 작성한다.
