@@ -63,6 +63,26 @@ impl Database {
         Ok(tasks)
     }
 
+    pub fn get_task_by_id(&self, id: &str) -> Result<Option<Task>> {
+        let conn = Connection::open(&self.path)?;
+        let mut stmt = conn.prepare("SELECT id, title, completed, priority, category, due_date FROM tasks WHERE id = ?1")?;
+        let mut task_iter = stmt.query_map(params![id], |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                completed: row.get(2)?,
+                priority: row.get(3)?,
+                category: row.get(4)?,
+                due_date: row.get(5)?,
+            })
+        })?;
+
+        if let Some(task) = task_iter.next() {
+            return Ok(Some(task?));
+        }
+        Ok(None)
+    }
+
     pub fn add_task(&self, task: Task) -> Result<()> {
         let conn = Connection::open(&self.path)?;
         conn.execute(

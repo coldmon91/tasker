@@ -16,6 +16,13 @@ fn get_tasks(state: State<AppState>) -> Result<Vec<Task>, String> {
 }
 
 #[tauri::command]
+fn get_task(id: String, state: State<AppState>) -> Result<Option<Task>, String> {
+    let db_guard = state.db.lock().map_err(|_| "Failed to lock mutex")?;
+    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    db.get_task_by_id(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn add_task(task: Task, state: State<AppState>) -> Result<(), String> {
     let db_guard = state.db.lock().map_err(|_| "Failed to lock mutex")?;
     let db = db_guard.as_ref().ok_or("Database not initialized")?;
@@ -52,7 +59,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_tasks, add_task, update_task, delete_task])
+        .invoke_handler(tauri::generate_handler![get_tasks, get_task, add_task, update_task, delete_task])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

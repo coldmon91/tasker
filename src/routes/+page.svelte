@@ -11,6 +11,7 @@
   import { page } from '$app/state';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
   type Priority = 'High' | 'Medium' | 'Low';
 
@@ -158,7 +159,9 @@
               class="text-gray-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-red-50">
               <Trash2 size={18} />
             </button>
-            <button class="text-gray-400 hover:text-gray-600 transition-all p-2 rounded-lg hover:bg-gray-50">
+            <button 
+              onclick={() => goto(`/task/${task.id}`)}
+              class="text-gray-400 hover:text-indigo-600 transition-all p-2 rounded-lg hover:bg-indigo-50">
               <MoreVertical size={18} />
             </button>
           </div>
