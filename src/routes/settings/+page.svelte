@@ -5,9 +5,7 @@
   import { onMount } from 'svelte';
 
   let connecting = $state(false);
-  let authCode = $state('');
-  let authUrl = $state('');
-  let isConnected = $state(false); 
+  let isConnected = $state(false);
   let googleUser: { name: string, email: string, picture: string | null } | null = $state(null);
   let taskLists: { id: string, title: string, updated: string }[] = $state([]);
   let loadingLists = $state(false);
@@ -18,25 +16,21 @@
 
   async function startAuth() {
     try {
-      authUrl = await invoke('get_google_auth_url');
-      await openUrl(authUrl);
       connecting = true;
-    } catch (e) {
-      console.error('Failed to start auth:', e);
-      alert('Failed to get auth URL. Check if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set in .env file.');
-    }
-  }
-
-  async function verifyCode() {
-    if (!authCode) return;
-    try {
-      googleUser = await invoke('finish_google_auth', { code: authCode });
+      const authUrl = await invoke('get_google_auth_url');
+      
+      // Open browser for authentication
+      await openUrl(authUrl);
+      
+      // Start OAuth callback server and wait for auth code
+      googleUser = await invoke('complete_google_auth');
       isConnected = true;
       connecting = false;
       fetchLists();
     } catch (e) {
-      console.error('Auth failed:', e);
+      console.error('Failed to complete auth:', e);
       alert('Authentication failed: ' + e);
+      connecting = false;
     }
   }
 
@@ -143,7 +137,7 @@
 
         {#if activeSection === 'google'}
           <div class="px-6 pb-6 pt-2 bg-gray-50/50">
-             {#if !isConnected}
+             {#if !isConnected && !connecting}
               <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm text-center">
                  <div class="mb-4 text-gray-600">
                    Connect your Google account to sync Tasks and Calendar.
@@ -158,25 +152,14 @@
             {/if}
 
             {#if connecting && !isConnected}
-              <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mt-4">
-                <p class="text-sm text-indigo-800 mb-3">
-                  1. A browser window should have opened. If not, <a href={authUrl} target="_blank" class="underline font-bold">click here</a>.<br>
-                  2. Log in and authorize the app.<br>
-                  3. Copy the code provided and paste it below:
-                </p>
-                <div class="flex gap-2">
-                  <input 
-                    type="text" 
-                    bind:value={authCode}
-                    placeholder="Paste authorization code here..."
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                  <button 
-                    onclick={verifyCode}
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
-                    Verify
-                  </button>
+              <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mt-4 text-center">
+                <div class="flex items-center justify-center gap-2 mb-2">
+                  <Loader2 size={20} class="animate-spin text-indigo-600" />
+                  <p class="text-sm font-medium text-indigo-900">Waiting for authentication...</p>
                 </div>
+                <p class="text-xs text-indigo-700">
+                  Please complete the authentication in your browser window.
+                </p>
               </div>
             {/if}
 

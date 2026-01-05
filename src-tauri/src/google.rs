@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::db::Database;
 use std::env;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
-const REDIRECT_URI: &str = "http://localhost:14123"; 
+const REDIRECT_URI: &str = "http://localhost:14123";
 const AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const SCOPE: &str = "https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
@@ -69,6 +71,104 @@ pub fn get_auth_url() -> String {
         "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&access_type=offline&prompt=consent",
         AUTH_URL, get_client_id(), REDIRECT_URI, SCOPE
     )
+}
+
+pub fn start_oauth_server() -> Result<String, String> {
+    let auth_code = Arc::new(Mutex::new(None::<String>));
+    let auth_code_clone = Arc::clone(&auth_code);
+
+    let server = tiny_http::Server::http("127.0.0.1:14123")
+        .map_err(|e| format!("Failed to start OAuth server: {}", e))?;
+
+    thread::spawn(move || {
+        if let Ok(Some(request)) = server.recv_timeout(std::time::Duration::from_secs(120)) {
+            let url = request.url().to_string();
+            let mut found_code = false;
+            
+            // Parse query parameters to extract code
+            if let Some(query_start) = url.find('?') {
+                let query = &url[query_start + 1..];
+                for param in query.split('&') {
+                    if let Some((key, value)) = param.split_once('=') {
+                        if key == "code" {
+                            let mut code_guard = auth_code_clone.lock().unwrap();
+                            *code_guard = Some(value.to_string());
+                            found_code = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Send response to browser
+            if found_code {
+                let response = tiny_http::Response::from_string(
+                    r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Authentication Successful</title>
+    <style>
+        body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+        .success { color: #10b981; font-size: 3rem; margin-bottom: 1rem; }
+        h1 { color: #1f2937; margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+        p { color: #6b7280; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="success">✓</div>
+        <h1>Authentication Successful!</h1>
+        <p>You can now close this window and return to Tasker.</p>
+    </div>
+</body>
+</html>"#
+                ).with_header(
+                    tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap()
+                );
+                let _ = request.respond(response);
+            } else {
+                let response = tiny_http::Response::from_string(
+                    r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Authentication Failed</title>
+    <style>
+        body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+        .error { color: #ef4444; font-size: 3rem; margin-bottom: 1rem; }
+        h1 { color: #1f2937; margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+        p { color: #6b7280; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="error">✗</div>
+        <h1>Authentication Failed</h1>
+        <p>No authorization code received. Please try again.</p>
+    </div>
+</body>
+</html>"#
+                ).with_header(
+                    tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap()
+                );
+                let _ = request.respond(response);
+            }
+        }
+    });
+
+    // Wait for auth code with timeout
+    for _ in 0..120 {
+        thread::sleep(std::time::Duration::from_secs(1));
+        let code_guard = auth_code.lock().unwrap();
+        if let Some(code) = code_guard.as_ref() {
+            return Ok(code.clone());
+        }
+    }
+
+    Err("Timeout waiting for authorization code".to_string())
 }
 
 pub async fn get_user_profile(db: &Database) -> Result<GoogleUser, String> {

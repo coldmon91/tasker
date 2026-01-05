@@ -77,6 +77,19 @@ async fn finish_google_auth(code: String, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
+async fn complete_google_auth(state: State<'_, AppState>) -> Result<google::GoogleUser, String> {
+    // Start OAuth callback server
+    let code = google::start_oauth_server()?;
+    
+    // Exchange code for tokens
+    let db = {
+        let db_guard = state.db.lock().map_err(|_| "Failed to lock mutex")?;
+        db_guard.as_ref().ok_or("Database not initialized")?.clone()
+    };
+    google::exchange_code(&code, &db).await
+}
+
+#[tauri::command]
 async fn get_google_task_lists(state: State<'_, AppState>) -> Result<Vec<google::TaskList>, String> {
     let db = {
         let db_guard = state.db.lock().map_err(|_| "Failed to lock mutex")?;
@@ -140,7 +153,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_tasks, get_task, add_task, update_task, delete_task, update_task_order,
-            get_google_auth_url, finish_google_auth, get_google_user, get_google_task_lists, import_google_tasks
+            get_google_auth_url, finish_google_auth, complete_google_auth, get_google_user, get_google_task_lists, import_google_tasks
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
