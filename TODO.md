@@ -1,7 +1,8 @@
-- [] Google Tasks 연동
+# TODO
+
+- [x] Google Tasks 연동
 - [] Apple Reminders 연동
 - [] Google Calendar 연동
-
 
 ## 할 일 관련
 - [] 할 일 카드를 클릭하면 상세 설정을 할수 있도록 카드 개선

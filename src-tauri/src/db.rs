@@ -11,6 +11,7 @@ pub struct Task {
     pub due_date: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct Database {
     path: String,
 }
@@ -38,6 +39,34 @@ impl Database {
                 due_date TEXT
             )",
             [],
+        )?;
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let conn = Connection::open(&self.path)?;
+        let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
+        let mut rows = stmt.query(params![key])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(row.get(0)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        let conn = Connection::open(&self.path)?;
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+            params![key, value],
         )?;
         Ok(())
     }

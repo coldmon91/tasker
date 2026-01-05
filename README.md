@@ -31,6 +31,20 @@ Rust Tauri와 SvelteKit 기반의 개인 일정 관리 및 할 일 관리(To-do)
 npm install
 ```
 
+### 환경 변수 설정
+
+Google 연동 기능을 사용하려면 프로젝트 루트에 `.env` 파일을 생성하고 발급받은 API 키를 설정해야 합니다.
+
+1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트를 생성합니다.
+2. **Google Tasks API** 및 **Google Calendar API**를 활성화합니다.
+3. **OAuth 2.0 클라이언트 ID**를 생성합니다 (애플리케이션 유형: 데스크톱 앱).
+4. 프로젝트 루트에 `.env` 파일을 생성하고 아래 내용을 입력합니다.
+
+```env
+GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+```
+
 ### 개발 모드 실행
 
 ```bash
