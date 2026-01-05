@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { 
-    CheckCircle2, 
-    Circle, 
-    Plus, 
+  import {
+    CheckCircle2,
+    Circle,
+    Plus,
     Settings,
     MoreVertical,
     ListTodo,
-    Trash2
+    Trash2,
+    GripVertical
   } from 'lucide-svelte';
   import { page } from '$app/state';
   import { invoke } from '@tauri-apps/api/core';
@@ -22,10 +23,14 @@
     priority: Priority;
     due_date?: string | null; // Rust Option<String> maps to string | null
     category: string;
+    position: number;
   }
 
   let tasks = $state<Task[]>([]);
   let newTaskTitle = $state('');
+  let draggedTaskId = $state<string | null>(null);
+  let dragOverTaskId = $state<string | null>(null);
+  let isDragging = $state(false);
 
   async function loadTasks() {
     try {
@@ -41,13 +46,15 @@
 
   async function addTask() {
     if (newTaskTitle.trim()) {
+      const maxPos = tasks.reduce((max, t) => Math.max(max, t.position), -1);
       const newTask: Task = {
         id: crypto.randomUUID(),
         title: newTaskTitle,
         completed: false,
         priority: 'Medium',
         category: 'In-box',
-        due_date: null
+        due_date: null,
+        position: maxPos + 1
       };
       
       try {
@@ -80,6 +87,76 @@
     } catch (e) {
       console.error('Failed to delete task:', e);
     }
+  }
+
+  function handleMouseDown(taskId: string, e: MouseEvent) {
+    // 버튼 클릭은 무시
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    console.log('[DEBUG] mousedown on task:', taskId);
+    isDragging = true;
+    draggedTaskId = taskId;
+  }
+
+  function handleMouseEnter(taskId: string) {
+    if (isDragging && draggedTaskId && draggedTaskId !== taskId) {
+      console.log('[DEBUG] mouse enter task:', taskId);
+      dragOverTaskId = taskId;
+    }
+  }
+
+  function handleMouseUp(e: MouseEvent) {
+    console.log('[DEBUG] mouseup, isDragging:', isDragging, 'dragOverTaskId:', dragOverTaskId);
+    if (isDragging && dragOverTaskId) {
+      handleDrop(dragOverTaskId);
+    }
+    isDragging = false;
+    draggedTaskId = null;
+    dragOverTaskId = null;
+  }
+
+  async function handleDrop(targetId: string) {
+    console.log('[DEBUG] handleDrop called with targetId:', targetId);
+    console.log('[DEBUG] draggedTaskId:', draggedTaskId);
+
+    if (!draggedTaskId || draggedTaskId === targetId) {
+      console.log('[DEBUG] Early return - same task or no dragged task');
+      return;
+    }
+
+    const originalIndex = tasks.findIndex(t => t.id === draggedTaskId);
+    const targetIndex = tasks.findIndex(t => t.id === targetId);
+
+    console.log('[DEBUG] originalIndex:', originalIndex, 'targetIndex:', targetIndex);
+
+    if (originalIndex !== -1 && targetIndex !== -1) {
+      // Reorder locally
+      const newTasks = [...tasks];
+      const [movedTask] = newTasks.splice(originalIndex, 1);
+      newTasks.splice(targetIndex, 0, movedTask);
+
+      console.log('[DEBUG] Reordered tasks locally');
+
+      // Update positions for subsequent reloads consistency (optional but good for local logic)
+      newTasks.forEach((t, i) => { t.position = i; });
+
+      tasks = newTasks;
+
+      console.log('[DEBUG] Updated tasks state, new order:', tasks.map(t => t.title));
+
+      // Update order in backend
+      try {
+        const ordered_ids = tasks.map(t => t.id);
+        console.log('[DEBUG] Calling update_task_order with ids:', ordered_ids);
+        await invoke('update_task_order', { ordered_ids });
+        console.log('[DEBUG] Successfully updated task order in backend');
+      } catch (e) {
+        console.error('Failed to update task order:', e);
+      }
+    }
+    draggedTaskId = null;
+    dragOverTaskId = null;
   }
 
   let currentFilter = $derived(() => {
@@ -121,12 +198,32 @@
     </div>
 
     <!-- Task List -->
-    <div class="space-y-3">
+    <div
+      class="space-y-3"
+      ondragover={(e) => {
+        console.log('[DEBUG] dragover on container');
+      }}
+      ondrop={(e) => {
+        console.log('[DEBUG] drop on container (outside cards)');
+      }}
+    >
       {#each filteredTasks() as task (task.id)}
-        <div class="group flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all">
-          <button 
-            onclick={() => toggleTask(task.id)}
-            class="text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0">
+        <div
+          onmousedown={(e) => handleMouseDown(task.id, e)}
+          onmouseenter={() => handleMouseEnter(task.id)}
+          onmouseup={handleMouseUp}
+          ondblclick={() => goto(`/task/${task.id}`)}
+          class="group flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm transition-all cursor-grab active:cursor-grabbing select-none
+          {draggedTaskId === task.id ? 'opacity-40 ring-2 ring-indigo-400 border-indigo-400 border-dashed' : ''}
+          {dragOverTaskId === task.id && draggedTaskId !== task.id ? 'border-indigo-500 ring-2 ring-indigo-200 transform scale-[1.02]' : 'hover:border-indigo-200 hover:shadow-md'}"
+        >
+          <!-- Drag Handle (visual indicator) -->
+          <div class="text-gray-300 hover:text-gray-500 flex-shrink-0">
+            <GripVertical size={20} />
+          </div>
+          <button
+            onclick={(e) => { e.stopPropagation(); toggleTask(task.id); }}
+            class="text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0 cursor-pointer">
             {#if task.completed}
               <CheckCircle2 class="text-green-500" size={24} />
             {:else}
@@ -154,15 +251,10 @@
           </div>
 
           <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-            <button 
-              onclick={() => deleteTask(task.id)}
+            <button
+              onclick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
               class="text-gray-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-red-50">
               <Trash2 size={18} />
-            </button>
-            <button 
-              onclick={() => goto(`/task/${task.id}`)}
-              class="text-gray-400 hover:text-indigo-600 transition-all p-2 rounded-lg hover:bg-indigo-50">
-              <MoreVertical size={18} />
             </button>
           </div>
         </div>

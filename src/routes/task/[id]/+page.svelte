@@ -22,6 +22,7 @@
     priority: Priority;
     due_date?: string | null;
     category: string;
+    position: number;
   }
 
   let task = $state<Task | null>(null);

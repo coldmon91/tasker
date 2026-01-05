@@ -44,6 +44,13 @@ fn delete_task(id: String, state: State<AppState>) -> Result<(), String> {
     db.delete_task(&id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn update_task_order(ordered_ids: Vec<String>, state: State<AppState>) -> Result<(), String> {
+    let db_guard = state.db.lock().map_err(|_| "Failed to lock mutex")?;
+    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    db.update_task_order(ordered_ids).map_err(|e| e.to_string())
+}
+
 // Google Tasks Commands
 
 #[tauri::command]
@@ -97,6 +104,7 @@ async fn import_google_tasks(list_id: String, state: State<'_, AppState>) -> Res
             priority: "medium".to_string(), // Default, Google doesn't have simple priority like high/low easily accessible without parsing notes or something
             category: "Google Tasks".to_string(), // Or use list title if passed
             due_date: g_task.due.map(|d| d.chars().take(10).collect()), // Simple truncate to YYYY-MM-DD
+            position: 0, // Default position, will be sorted to top/bottom depending on logic
         };
         
         // Upsert
@@ -131,7 +139,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            get_tasks, get_task, add_task, update_task, delete_task,
+            get_tasks, get_task, add_task, update_task, delete_task, update_task_order,
             get_google_auth_url, finish_google_auth, get_google_user, get_google_task_lists, import_google_tasks
         ])
         .run(tauri::generate_context!())
